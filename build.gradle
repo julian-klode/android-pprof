@@ -24,5 +24,8 @@ repositories {
 }
 
 dependencies {
-    compile 'com.android.tools.ddms:ddmlib:25.3.0'
+    compile('com.android.tools.ddms:ddmlib:25.3.0') {
+        exclude group: 'net.sf.kxml'
+        exclude group: 'com.android.tools'
+    }
 }
