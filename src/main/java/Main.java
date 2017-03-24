@@ -134,12 +134,10 @@ public class Main {
 
         System.out.println("digraph foo {");
 
-        Node smallest = orderedNodes[Integer.min(orderedNodes.length - 1, NODES_TO_SHOW - 1)];
-
-
         for (int i = 0; i < NODES_TO_SHOW && i < orderedNodes.length; i++) {
             Node node = orderedNodes[i];
-            System.out.printf("node [label=\"%s\\n%d (%f%%) out of %d (%f%%)\"] node%d;\n", node.name, node.here, 100.0 * node.here / totalAlloc, node.total, 100.0 * node.total / totalAlloc, node.id);
+            if (node.total > (0.005 * totalAlloc))
+            System.out.printf("node [shape=rectangle,height=%f,label=\"%s\\n%d (%f%%) out of %d (%f%%)\"] node%d;\n", node.here / (0.06 * totalAlloc), node.name, node.here, 100.0 * node.here / totalAlloc, node.total, 100.0 * node.total / totalAlloc, node.id);
 
         }
         for (int i = 0; i < NODES_TO_SHOW && i < orderedNodes.length; i++) {
@@ -148,7 +146,7 @@ public class Main {
                 Node nodeB = orderedNodes[j];
 
                 long edge = allocationEdges[node.id * allocationNodes.length + nodeB.id];
-                if (edge > 0)
+                if (edge > 0 && edge > (0.01 * totalAlloc))
                     System.out.printf("node%s -> node%d [label=\"%s (%f%%)\"];\n", node.id, nodeB.id, edge, 100.0 * edge / totalAlloc);
             }
         }
