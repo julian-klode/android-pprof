@@ -23,12 +23,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 
 public class Main {
@@ -37,7 +34,6 @@ public class Main {
     private static int counter = 0;
     private static Map<String, Integer> functionIndex = new HashMap<String, Integer>();
     private static long allocationEdges[];
-    private static Node allocationNodes[];
     private static long totalAlloc;
 
     public static AllocationInfo[] parse(String allocFilePath) {
@@ -72,81 +68,73 @@ public class Main {
 
     public static void main(String[] args) {
         AllocationInfo[] infos = parse("/home/jak/Projects/Android/DNS66/captures/org.jak_linux.dns66_2017.03.24_02.24.alloc");
+        ArrayList<Node> allocationNodes = new ArrayList<>();
 
+        // Build all nodes
         for (AllocationInfo info : infos) {
             totalAlloc += info.getSize();
             if (skip(info))
                 continue;
-            for (StackTraceElement element : info.getStackTrace()) {
+
+            StackTraceElement[] trace = info.getStackTrace();
+            HashSet<String> seen = new HashSet<>();
+            for (StackTraceElement element : trace) {
                 String name = getName(element);
+                Node node;
                 if (!functionIndex.containsKey(name)) {
                     functionIndex.put(name, counter++);
+                    node = new Node();
+                    node.id = counter - 1;
+                    node.name = name;
+                    allocationNodes.add(node);
+                } else {
+                    node = allocationNodes.get(functionIndex.get(name));
+                }
+                if (element == trace[0])
+                    node.here = info.getSize();
+
+                if (!seen.contains(name)) {
+                    node.total += info.getSize();
+                    seen.add(name);
                 }
             }
-
-
         }
 
-        allocationNodes = new Node[functionIndex.size()];
+        // Build adjacency matrix
         allocationEdges = new long[functionIndex.size() * functionIndex.size()];
-
         for (AllocationInfo info : infos) {
-            StackTraceElement[] trace = info.getStackTrace();
-            List<StackTraceElement> traceList = Arrays.asList(trace);
-            Collections.reverse(traceList);
-            trace = traceList.toArray(trace);
             if (skip(info)) {
                 continue;
             }
-            HashSet<String> seen = new HashSet<>();
-            for (int i = 0; i < trace.length; i++) {
+            StackTraceElement[] trace = info.getStackTrace();
+            // Visiting from caller to callee
+            for (int i = trace.length - 1; i > 1; i--) {
                 String nameA = getName(trace[i]);
                 int indexA = functionIndex.get(nameA);
-                if (allocationNodes[indexA] == null) {
-                    allocationNodes[indexA] = new Node();
-                    allocationNodes[indexA].id = indexA;
-                    allocationNodes[indexA].name = nameA;
-                    allocationNodes[indexA].total = 0;
-                    allocationNodes[indexA].here = 0;
-
-                }
-                if (!seen.contains(nameA)) {
-                    allocationNodes[indexA].total += info.getSize();
-                    seen.add(nameA);
-                }
-
-                if (i == trace.length - 1) {
-                    allocationNodes[indexA].here += info.getSize();
-                } else {
-                    String nameB = getName(trace[i + 1]);
-                    int indexB = functionIndex.get(nameB);
-                    allocationEdges[indexA * allocationNodes.length + indexB] += info.getSize();
-                }
+                String nameB = getName(trace[i - 1]);
+                int indexB = functionIndex.get(nameB);
+                allocationEdges[indexA * allocationNodes.size() + indexB] += info.getSize();
             }
         }
 
-        Node[] orderedNodes = Arrays.copyOf(allocationNodes, allocationNodes.length);
-        Arrays.sort(orderedNodes, new Comparator<Node>() {
-            @Override
-            public int compare(Node a, Node b) {
-                return Long.compare(b.total, a.total);
-            }
-        });
+        // Render the graph.
+        ArrayList<Node> orderedNodes = new ArrayList<>(allocationNodes);
+        orderedNodes.sort((a, b) -> Long.compare(b.total, a.total));
 
         System.out.println("digraph foo {");
 
-        for (int i = 0; i < NODES_TO_SHOW && i < orderedNodes.length; i++) {
-            Node node = orderedNodes[i];
+        for (int i = 0; i < NODES_TO_SHOW && i < orderedNodes.size(); i++) {
+            Node node = orderedNodes.get(i);
             if (node.total > (0.005 * totalAlloc))
                 System.out.printf("node [shape=rectangle,height=%f,label=\"%s\\n%d (%f%%) out of %d (%f%%)\"] node%d;\n", node.here / (0.06 * totalAlloc), node.name, node.here, 100.0 * node.here / totalAlloc, node.total, 100.0 * node.total / totalAlloc, node.id);
 
         }
-        for (int i = 0; i < NODES_TO_SHOW && i < orderedNodes.length; i++) {
-            Node node = orderedNodes[i];
-            for (int j = 0; j < NODES_TO_SHOW && j < orderedNodes.length; j++) {
-                Node nodeB = orderedNodes[j];
+        for (int i = 0; i < NODES_TO_SHOW && i < orderedNodes.size(); i++) {
+            Node node = orderedNodes.get(i);
+            for (int j = 0; j < NODES_TO_SHOW && j < orderedNodes.size(); j++) {
+                Node nodeB = orderedNodes.get(j);
 
-                long edge = allocationEdges[node.id * allocationNodes.length + nodeB.id];
+                long edge = allocationEdges[node.id * allocationNodes.size() + nodeB.id];
                 if (edge > 0 && edge > (0.01 * totalAlloc))
                     System.out.printf("node%s -> node%d [label=\"%s (%f%%)\"];\n", node.id, nodeB.id, edge, 100.0 * edge / totalAlloc);
             }
