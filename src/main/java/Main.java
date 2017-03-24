@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -137,7 +138,7 @@ public class Main {
         for (int i = 0; i < NODES_TO_SHOW && i < orderedNodes.length; i++) {
             Node node = orderedNodes[i];
             if (node.total > (0.005 * totalAlloc))
-            System.out.printf("node [shape=rectangle,height=%f,label=\"%s\\n%d (%f%%) out of %d (%f%%)\"] node%d;\n", node.here / (0.06 * totalAlloc), node.name, node.here, 100.0 * node.here / totalAlloc, node.total, 100.0 * node.total / totalAlloc, node.id);
+                System.out.printf("node [shape=rectangle,height=%f,label=\"%s\\n%d (%f%%) out of %d (%f%%)\"] node%d;\n", node.here / (0.06 * totalAlloc), node.name, node.here, 100.0 * node.here / totalAlloc, node.total, 100.0 * node.total / totalAlloc, node.id);
 
         }
         for (int i = 0; i < NODES_TO_SHOW && i < orderedNodes.length; i++) {
