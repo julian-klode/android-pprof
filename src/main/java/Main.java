@@ -97,6 +97,7 @@ public class Main {
             if (skip(info)) {
                 continue;
             }
+            HashSet<String> seen = new HashSet<>();
             for (int i = 0; i < trace.length; i++) {
                 String nameA = getName(trace[i]);
                 int indexA = functionIndex.get(nameA);
@@ -106,8 +107,12 @@ public class Main {
                     allocationNodes[indexA].name = nameA;
                     allocationNodes[indexA].total = 0;
                     allocationNodes[indexA].here = 0;
+
                 }
-                allocationNodes[indexA].total += info.getSize();
+                if (!seen.contains(nameA)) {
+                    allocationNodes[indexA].total += info.getSize();
+                    seen.add(nameA);
+                }
 
                 if (i == trace.length - 1) {
                     allocationNodes[indexA].here += info.getSize();
